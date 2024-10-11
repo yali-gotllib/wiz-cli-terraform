@@ -1,0 +1,16 @@
+module "wiz" {
+  source = "s3::https://s3-us-east-2.amazonaws.com/wizio-public/deployment-v2/aws/wiz-aws-account-terraform-module.zip"
+  external_id = "wiz-security-external-id"
+  cloud_environment = "Commercial"
+  tags = {
+    name = "wiz"
+  }
+}
+
+output "wiz_connector_arn" {
+  value = module.wiz.wiz_role_iam
+}
+
+output "wiz_external_id" {
+  value = module.wiz.wiz_external_id
+}

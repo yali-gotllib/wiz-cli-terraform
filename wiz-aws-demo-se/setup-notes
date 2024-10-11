@@ -1,0 +1,55 @@
+## STEP 1
+
+aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw cluster_name)
+
+kubectl exec --stdin --tty  mongoclient-65dc5cdbdb-s6g6m -- /bin/bash
+
+kubectl describe clusterrolebinding.rbac
+
+## STEP 2
+
+# Permissive RBAC
+kubectl create clusterrolebinding permissive-binding \
+  --clusterrole=cluster-admin \
+  --user=admin \
+  --user=kubelet \
+  --group=system:serviceaccounts
+
+# Permissive VM instance profile (in TF)
+VM permissive
+aws iam create-policy --policy-name WizPolicyEC2 --policy-document file:///Users/thomasbeaumont/Documents/VisualStudio/wizdemo/wizrole-ec2-policy.json
+aws iam create-role --role-name WizRole --assume-role-policy-document file:///Users/thomasbeaumont/Documents/VisualStudio/wizdemo/wizrole-trust-role.json
+aws iam attach-role-policy --policy-arn arn:aws:iam::512959063724:policy/WizPolicyEC2 --role-name WizRole
+aws iam create-instance-profile --instance-profile-name mongo-permissive
+aws iam add-role-to-instance-profile --instance-profile-name mongo-permissive --role-name WizRole
+aws iam associate-iam-instance-profile 
+aws ec2 associate-iam-instance-profile --instance-id i-03b3cf446840d9d5e --iam-instance-profile Name=allow-mongo-ec2
+
+
+aws iam list-instance-profiles
+aws iam list-instance-profiles-for-role
+aws ec2 describe-iam-instance-profile-associations
+
+# MongoDB access control
+
+mongo
+
+use admin
+db.createUser(
+  {
+    user: "wizadmin",
+    pwd: "test0111", // or cleartext password
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+
+sudo /etc/init.d/mongod stop
+
+# in /etc/mongod.conf
+security:
+    authorization: enabled
+
+sudo /etc/init.d/mongod start
+
+mongodb://wizadmin:test0111@10.0.4.100:27017/?authSource=admin
+
